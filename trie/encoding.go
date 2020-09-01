@@ -36,12 +36,21 @@ package trie
 
 func hexToCompact(hex []byte) []byte {
 	terminator := byte(0)
+	// 如果hex有标记位，那么把标记位去掉
 	if hasTerm(hex) {
 		terminator = 1
 		hex = hex[:len(hex)-1]
 	}
+	// 创建compact数组，多一个字节放标记位
 	buf := make([]byte, len(hex)/2+1)
+	// flag标记位为第一个字节
+	// 00010000
+	// 00000000
 	buf[0] = terminator << 5 // the flag byte
+	// 如果hex的长度为基数那么添加奇数标志位,偶数位就不加
+	// 例如：00110000,00010000,00000000，00100000
+	// 再把hex的第一个nibbles（低四位）拼进去
+	// 例如：0011xxxx
 	if len(hex)&1 == 1 {
 		buf[0] |= 1 << 4 // odd flag
 		buf[0] |= hex[0] // first nibble is contained in the first byte
@@ -65,13 +74,17 @@ func compactToHex(compact []byte) []byte {
 	return base[chop:]
 }
 
+// 经过hex编码后，每个字节值的范围都为0-15
 func keybytesToHex(str []byte) []byte {
 	l := len(str)*2 + 1
 	var nibbles = make([]byte, l)
 	for i, b := range str {
+		// 偶数位放原字节的高四位
 		nibbles[i*2] = b / 16
+		// 基数位放原字节的低四位
 		nibbles[i*2+1] = b % 16
 	}
+	// 最后添加标志位
 	nibbles[l-1] = 16
 	return nibbles
 }
@@ -82,9 +95,11 @@ func hexToKeybytes(hex []byte) []byte {
 	if hasTerm(hex) {
 		hex = hex[:len(hex)-1]
 	}
+	// 判断hex的长度是否为基数，合法的长度一定是偶数
 	if len(hex)&1 != 0 {
 		panic("can't convert hex key of odd length")
 	}
+	// 转码后的长度一定是原来的一半
 	key := make([]byte, len(hex)/2)
 	decodeNibbles(hex, key)
 	return key
@@ -92,6 +107,8 @@ func hexToKeybytes(hex []byte) []byte {
 
 func decodeNibbles(nibbles []byte, bytes []byte) {
 	for bi, ni := 0, 0; ni < len(nibbles); bi, ni = bi+1, ni+2 {
+		// 用或运算将nibbles第一个字节的低四位作为新字节的高四位
+		// 第二个字节的低四位作为新字节的低四位
 		bytes[bi] = nibbles[ni]<<4 | nibbles[ni+1]
 	}
 }
